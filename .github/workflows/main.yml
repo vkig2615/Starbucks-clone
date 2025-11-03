@@ -42,14 +42,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # 7️⃣ Login to Docker Hub
+      # 6️⃣ Login to Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-      # 8️⃣ Build and push Docker image
+      # 7️⃣ Build and push Docker image
       - name: Build and Push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -57,7 +57,7 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
 
-      # 9️⃣ Scan Docker image with Trivy for vulnerabilities (non-blocking)
+      # 8️⃣ Scan Docker image with Trivy for vulnerabilities (non-blocking)
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -68,7 +68,7 @@ jobs:
           severity: HIGH,CRITICAL
           vuln-type: 'os,library'
 
-      # 🔟 Deploy to remote server via SSH and Docker Swarm (using || instead of if)
+      # 9️⃣ Deploy to remote server via SSH and Docker Swarm
       - name: Deploy to remote server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -79,11 +79,9 @@ jobs:
           script: |
             echo "Pulling latest Docker image..."
             docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
-
             echo "Deploying service..."
             docker service update --image ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest --with-registry-auth starbucks_app \
             || docker service create --name starbucks_app --replicas 3 --publish 8081:80 ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
-
             echo "Deployment complete!"
             docker service ls
 
@@ -93,10 +91,19 @@ jobs:
         uses: slackapi/slack-github-action@v2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook   # 👈 REQUIRED for v2
           payload: |
             {
-              "channel": "deploy-starbucks",
-              "text": "✅ Deployment of *starbucks_app* was successful! :tada:"
+              "text": "✅ Deployment of *starbucks_app* was successful! :tada:",
+              "attachments": [
+                {
+                  "color": "good",
+                  "fields": [
+                    { "title": "Environment", "value": "Production", "short": true },
+                    { "title": "Docker Image", "value": "${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest", "short": true }
+                  ]
+                }
+              ]
             }
 
       # 🔔 Slack notification: Failure
@@ -105,8 +112,17 @@ jobs:
         uses: slackapi/slack-github-action@v2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook   # 👈 REQUIRED for v2
           payload: |
             {
-              "channel": "deploy-starbucks",
-              "text": "❌ Deployment of *starbucks_app* failed! :x:"
+              "text": "❌ Deployment of *starbucks_app* failed! :x:",
+              "attachments": [
+                {
+                  "color": "danger",
+                  "fields": [
+                    { "title": "Branch", "value": "${{ github.ref_name }}", "short": true },
+                    { "title": "Commit", "value": "${{ github.sha }}", "short": true }
+                  ]
+                }
+              ]
             }
