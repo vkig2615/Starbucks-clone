@@ -92,15 +92,21 @@ jobs:
         if: success()
         uses: slackapi/slack-github-action@v2
         with:
-          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
-          channel: deploy-starbucks
-          message: "✅ Deployment of *starbucks_app* was successful! :tada:"
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "channel": "deploy-starbucks",
+              "text": "✅ Deployment of *starbucks_app* was successful! :tada:"
+            }
 
       # 🔔 Slack notification: Failure
       - name: Notify Slack on Failure
         if: failure()
-        uses:  slackapi/slack-github-action@v2
+        uses: slackapi/slack-github-action@v2
         with:
-          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
-          channel: deploy-starbucks
-          message: "❌ Deployment of *starbucks_app* failed! :x:"
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
+            {
+              "channel": "deploy-starbucks",
+              "text": "❌ Deployment of *starbucks_app* failed! :x:"
+            }
