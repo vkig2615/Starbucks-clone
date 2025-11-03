@@ -74,7 +74,7 @@ jobs:
         with:
           host: ${{ secrets.SSH_REMOTE_HOST }}
           username: ${{ secrets.SSH_REMOTE_USER }}
-          key: ${{ secrets.REMOTE_SSH_KEY }}
+          key: ${{ secrets.SSH_REMOTE_KEY }}
           port: ${{ secrets.SSH_REMOTE_PORT }}
           script: |
             echo "Pulling latest Docker image..."
