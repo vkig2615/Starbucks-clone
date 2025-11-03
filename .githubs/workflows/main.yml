@@ -1,0 +1,86 @@
+name: Build, Scan, Deploy & Notify
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Setup Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      # 3️⃣ SonarQube scan
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        with:
+          projectBaseDir: .
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      # 4️⃣ Wait for SonarQube Quality Gate
+      - name: Wait for SonarQube Quality Gate
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        with:
+          pollingTimeoutSec: 600
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      # 5️⃣ Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # 6️⃣ Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      # 7️⃣ Build and push Docker image
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
+
+      # 8️⃣ Scan Docker image with Trivy
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
+          format: table
+          exit-code: 1
+          severity: HIGH,CRITICAL
+
+      # 9️⃣ Deploy to remote server via SSH and Docker Swarm
+      - name: Deploy to remote server via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_REMOTE_HOST }}
+          username: ${{ secrets.SSH_REMOTE_USER }}
+          key: ${{ secrets.REMOTE_SSH_KEY }}
+          port: ${{ secrets.SSH_REMOTE_PORT }}
+          script: |
+            echo "Pulling latest Docker image..."
+            docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
+
+            echo "Deploying service..."
+            docker service update --image ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest --with-registry-auth starbucks_app \
+            || docker service create --name starbucks_app --replicas 3 --publish 8081:80 ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
+
+            echo "Deployment complete!"
+            docker service ls
