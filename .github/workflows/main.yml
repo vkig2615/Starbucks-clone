@@ -86,3 +86,21 @@ jobs:
 
             echo "Deployment complete!"
             docker service ls
+
+      # 🔔 Slack notification: Success
+      - name: Notify Slack on Success
+        if: success()
+        uses: dawidd6/action-slack@v3
+        with:
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          channel: deploy-starbucks
+          message: "✅ Deployment of *starbucks_app* was successful! :tada:"
+
+      # 🔔 Slack notification: Failure
+      - name: Notify Slack on Failure
+        if: failure()
+        uses: dawidd6/action-slack@v3
+        with:
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          channel: deploy-starbucks
+          message: "❌ Deployment of *starbucks_app* failed! :x:"
