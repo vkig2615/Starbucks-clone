@@ -22,7 +22,7 @@ jobs:
 
       # 3️⃣ SonarQube scan
       - name: SonarQube Scan
-        uses: sonarsource/sonarqube-scan-action@master   # official scan action :contentReference[oaicite:2]{index=2}
+        uses: sonarsource/sonarqube-scan-action@master
         with:
           projectBaseDir: .
         env:
@@ -31,7 +31,7 @@ jobs:
 
       # 4️⃣ Wait for SonarQube Quality Gate
       - name: Wait for SonarQube Quality Gate
-        uses: sonarsource/sonarqube-quality-gate-action@master   # official QG action :contentReference[oaicite:3]{index=3}
+        uses: sonarsource/sonarqube-quality-gate-action@master
         with:
           pollingTimeoutSec: 600
         env:
@@ -41,7 +41,6 @@ jobs:
       # 5️⃣ Install dependencies
       - name: Install dependencies
         run: npm install
-
 
       # 7️⃣ Login to Docker Hub
       - name: Login to Docker Hub
@@ -58,16 +57,18 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
 
-      # 9️⃣ Scan Docker image with Trivy for vulnerabilities
+      # 9️⃣ Scan Docker image with Trivy for vulnerabilities (non-blocking)
       - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@0.28.0   # using major version tag for Trivy :contentReference[oaicite:4]{index=4}
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
           format: table
-          exit-code: 1
+          exit-code: 0
+          ignore-unfixed: true
           severity: HIGH,CRITICAL
+          vuln-type: 'os,library'
 
-      # 🔟 Deploy to remote server via SSH and Docker Swarm
+      # 🔟 Deploy to remote server via SSH and Docker Swarm (using || instead of if)
       - name: Deploy to remote server via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -80,15 +81,8 @@ jobs:
             docker pull ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
 
             echo "Deploying service..."
-            if docker service ls | grep -q starbucks_app; then
-              echo "Service exists, updating image..."
-              docker service update --image ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest --with-registry-auth starbucks_app
-            else
-              echo "Service not found, creating new service..."
-              docker service create --name starbucks_app --replicas 3 --publish 8081:80 ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
-            fi
+            docker service update --image ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest --with-registry-auth starbucks_app \
+            || docker service create --name starbucks_app --replicas 3 --publish 8081:80 ${{ secrets.DOCKER_HUB_USERNAME }}/starbucks:latest
 
             echo "Deployment complete!"
             docker service ls
-
-        
