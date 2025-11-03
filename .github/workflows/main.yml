@@ -90,7 +90,7 @@ jobs:
       # 🔔 Slack notification: Success
       - name: Notify Slack on Success
         if: success()
-        uses: dawidd6/action-slack@v3
+        uses: slackapi/slack-github-action@v2
         with:
           webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
           channel: deploy-starbucks
