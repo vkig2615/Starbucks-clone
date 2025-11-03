@@ -99,7 +99,7 @@ jobs:
       # 🔔 Slack notification: Failure
       - name: Notify Slack on Failure
         if: failure()
-        uses: dawidd6/action-slack@v3
+        uses:  dawidd6/action-slack@v3.1.0
         with:
           webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
           channel: deploy-starbucks
